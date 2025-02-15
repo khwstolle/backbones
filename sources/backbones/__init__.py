@@ -16,7 +16,11 @@ This library was created to solve the following problems.
 3. Allow both training and inference of the sub-networks.
 """
 
+from . import resnet, swin
+
 from ._extract import *
-from ._transforms import *
+from ._interface import *
+from ._normalize import *
+from ._weights import *
 
 __version__ = "1.3.0"

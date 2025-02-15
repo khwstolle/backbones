@@ -4,6 +4,7 @@ Modules for building ResNet-like models.
 
 import typing
 from collections import OrderedDict
+
 from torch import Tensor, nn
 
 __all__ = ["ResNet", "BasicBlock", "Bottleneck"]
@@ -11,8 +12,14 @@ __all__ = ["ResNet", "BasicBlock", "Bottleneck"]
 type NormType = typing.Callable[[int], nn.Module]
 type ActivationType = typing.Callable[[], nn.Module]
 
+
+class InplaceReLU(nn.ReLU):
+    def __init__(self):
+        super().__init__(inplace=True)
+
+
 DEFAULT_NORM: typing.Final[NormType] = nn.BatchNorm2d
-DEFAULT_ACTIVATION: typing.Final[ActivationType] = nn.activation
+DEFAULT_ACTIVATION: typing.Final[ActivationType] = InplaceReLU
 
 
 class BlockProtocol(typing.Protocol):

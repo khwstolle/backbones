@@ -1,0 +1,3 @@
+[submodule "weights"]
+	path = weights
+	url = https://huggingface.co/khwstolle/backbones

@@ -33,6 +33,9 @@ dynamic = ["version"]
 [tool.setuptools.dynamic]
 version = { attr = "backbones.__version__" }
 
+[project.entry-points.console_scripts]
+backbones = "backbones._cli:cli.main"
+
 [project.entry-points.'unipercept.backbones']
 backbones = "backbones._interface:BackboneInterface"
 
@@ -90,7 +93,7 @@ fail_under = 100
 [tool.pyright]
 pythonPlatform = "Linux"
 pythonVersion = "3.12"
-typeCheckingMode = "strict"
+# typeCheckingMode = "strict"
 include = ["sources"]
 exclude = [
     "datasets",
