@@ -3,6 +3,7 @@ Build recipes for creating a backbone module from a name and corresponding weigh
 """
 
 from functools import partial
+
 from ._modules import BasicBlock, Bottleneck, ResNet
 
 
@@ -41,7 +42,8 @@ def resnet101() -> ResNet:
     ResNet-101 from `Deep Residual Learning for Image Recognition <https://arxiv.org/abs/1512.03385>`__.
     """
     return ResNet(
-        partial(Bottleneck)(3, 4, 23, 3),
+        Bottleneck,
+        (3, 4, 23, 3),
     )
 
 
@@ -50,7 +52,7 @@ def resnet152() -> ResNet:
     ResNet-152 from `Deep Residual Learning for Image Recognition <https://arxiv.org/abs/1512.03385>`__.
     """
     return ResNet(
-        partial(Bottleneck),
+        Bottleneck,
         (3, 8, 36, 3),
     )
 

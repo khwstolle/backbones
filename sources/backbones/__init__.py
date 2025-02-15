@@ -17,10 +17,9 @@ This library was created to solve the following problems.
 """
 
 from . import resnet, swin
-
 from ._extract import *
 from ._interface import *
+from ._io import *
 from ._normalize import *
-from ._weights import *
 
 __version__ = "1.3.0"

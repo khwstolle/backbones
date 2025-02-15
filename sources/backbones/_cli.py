@@ -8,8 +8,12 @@ import argparse
 import inspect
 import json
 import pathlib
+import sys
 from collections.abc import Callable
-from typing import Any, cast
+from functools import partial
+from typing import Any
+
+from backbones._io import load_data, load_meta, save_weights
 
 
 class cli:
@@ -17,25 +21,33 @@ class cli:
 
     registry: dict[str, Callable[..., Any]] = {}
 
-    def __new__(cls, fn: Callable[..., Any]) -> Callable[..., Any]:
-        cls.registry[fn.__name__.replace("_", "-")] = fn
-        return fn
+    def __new__(cls, fn: Callable[..., Any]) -> Callable[[], int]:
+        command = fn.__name__.replace("_", "-")
+        cls.registry[command] = fn
+        return partial(cls.main, command)
 
     @classmethod
-    def main(cls) -> None:
+    def main(cls, command: str | None = None) -> int:
         """Configure argparse and execute registered commands."""
         parser = argparse.ArgumentParser(description="Backbones CLI")
         subparsers = parser.add_subparsers(title="commands", required=True)
 
         for name, func in cls.registry.items():
+            if command is not None and command != name:
+                continue
             cmd_parser = subparsers.add_parser(name, help=func.__doc__)
             cls._add_parser(cmd_parser, func)
             cmd_parser.set_defaults(_command=func)
+
+        if command is not None:
+            sys.argv.insert(0, command)
 
         args = parser.parse_args()
         if hasattr(args, "_command"):
             cmd_args, cmd_kwargs = cls._bind_arguments(args)
             args._command(*cmd_args, **cmd_kwargs)
+
+        return 0
 
     @classmethod
     def _get_arg_name(cls, param) -> str:
@@ -59,19 +71,30 @@ class cli:
                         help=f"{param.annotation.__name__}",
                     )
                 case param.KEYWORD_ONLY:
-                    parser.add_argument(
-                        f"--{cls._get_arg_name(param)}",
-                        type=param.annotation
-                        if param.annotation != param.empty
-                        else str,
-                        required=param.default is param.empty,
-                        default=param.default
-                        if param.default is not param.empty
-                        else None,
-                        help=f"{param.annotation.__name__}"
-                        if param.annotation != param.empty
-                        else "",
-                    )
+                    if isinstance(param.annotation, bool):
+                        parser.add_argument(
+                            f"--{cls._get_arg_name(param)}",
+                            action="store_false"
+                            if param.default is True
+                            else "store_false",
+                            default=param.default
+                            if param.default is not param.empty
+                            else None,
+                        )
+                    else:
+                        parser.add_argument(
+                            f"--{cls._get_arg_name(param)}",
+                            type=param.annotation
+                            if param.annotation != param.empty
+                            else str,
+                            required=param.default is param.empty,
+                            default=param.default
+                            if param.default is not param.empty
+                            else None,
+                            help=f"{param.annotation.__name__}"
+                            if param.annotation != param.empty
+                            else "",
+                        )
                 case param.VAR_KEYWORD:
                     parser.add_argument(
                         cls._get_arg_name(param),
@@ -101,24 +124,41 @@ class cli:
                 args_key[key] = value
                 continue
             if param.kind in (param.VAR_KEYWORD,):
-                assert key not in args_key, args_key.keys()
-
+                if len(value) == 0:
+                    continue
                 type_as = (
                     param.annotation
                     if callable(param.annotation) and param.annotation != param.empty
                     else lambda x: x
                 )
 
-                args_key[key] = {
-                    var_key: type_as(var_value)
-                    for var_key, var_value in value.split("=")
-                }
+                for var_key, var_value in (vs.split("=") for vs in value):
+                    args_key[var_key] = type_as(var_value)
                 continue
 
             msg = f"Unknown parameter kind {param.kind}"
             raise RuntimeError(msg)
 
         return args_pos, args_key
+
+    @staticmethod
+    def query_bool(question, *, default: bool | None = None) -> bool:
+        valid = {"yes": True, "y": True, "ye": True, "no": False, "n": False}
+        match default:
+            case True:
+                prompt = " [Y/n] "
+            case False:
+                prompt = " [y/N] "
+            case _:
+                prompt = " [y/n] "
+
+        while True:
+            sys.stdout.write("\n" + question + prompt)
+            choice = input().lower()
+            if default is not None and choice == "":
+                return default
+            if choice in valid:
+                return valid[choice]
 
 
 @cli
@@ -130,13 +170,26 @@ def version() -> None:
 
 
 @cli
-def meta(path: pathlib.Path, /) -> None:
+def meta(path: pathlib.Path, /, *, yes: bool = False, **overrides) -> None:
     """Read metadata of a weights file."""
-    import safetensors.torch as st
+    meta = load_meta(path, missing_ok=True)
+    for k, v in overrides.items():
+        if (isinstance(v, str) and v == "") or v is None:
+            del meta[k]
+        else:
+            meta[k] = v
 
-    with st.safe_open(path, "torch") as data:  # type: ignore[arg-type]
-        meta = cast(dict[str, str], data.metadata())  # type: ignore[attr-defined]
-        print(json.dumps(meta, indent=4))
+    json.dump(meta, sys.stdout, indent=4)
+    sys.stdout.write("\n")
+
+    if len(overrides) == 0:
+        return
+    if not yes:
+        yes = cli.query_bool("Save modified metadata to weights file?", default=False)
+    if not yes:
+        return
+    data = load_data(path, device="cpu")  # cannot write meta only...
+    save_weights((data, meta), path)
 
 
 @cli
@@ -160,7 +213,7 @@ def export() -> None:
 
 
 @cli
-def list() -> None:
+def available() -> None:
     r"""
     List all available backbones.
     """

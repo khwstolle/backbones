@@ -111,7 +111,7 @@ class Bottleneck(nn.Module):
         self.conv2 = _build_conv2d_33(width, width, stride, groups, dilation)
         self.norm2 = norm(width)
         self.conv3 = _build_linear2d(width, dim_out * self.expansion)
-        self.bn3 = norm(dim_out * self.expansion)
+        self.norm3 = norm(dim_out * self.expansion)
         self.activation = activation()
         self.residual = residual if residual is not None else nn.Identity()
         self.stride = stride
@@ -129,7 +129,7 @@ class Bottleneck(nn.Module):
         out = self.activation(out)
 
         out = self.conv3(out)
-        out = self.bn3(out)
+        out = self.norm3(out)
 
         return self.activation(out + res)
 
@@ -165,12 +165,12 @@ class ResNet(nn.Module):
         self.stem = nn.Sequential(
             OrderedDict(
                 {
-                    "conv1": nn.Conv2d(
+                    "conv": nn.Conv2d(
                         3, inplanes, kernel_size=7, stride=2, padding=3, bias=False
                     ),
-                    "norm1": norm(inplanes),
+                    "norm": norm(inplanes),
                     "activation": activation(),
-                    "maxpool": nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
+                    "pool": nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
                 }
             )
         )
@@ -234,9 +234,9 @@ class ResNet(nn.Module):
             self.head = nn.Sequential(
                 OrderedDict(
                     {
-                        "avgpool": nn.AdaptiveAvgPool2d((1, 1)),
-                        "flatten": nn.Flatten(1),
-                        "fc": nn.Linear(512 * block.expansion, num_classes),
+                        "pool": nn.AdaptiveAvgPool2d((1, 1)),
+                        "flat": nn.Flatten(1),
+                        "proj": nn.Linear(512 * block.expansion, num_classes),
                     }
                 )
             )
@@ -252,8 +252,8 @@ class ResNet(nn.Module):
             elif isinstance(m, nn.BatchNorm2d | nn.GroupNorm):
                 nn.init.constant_(m.weight, 1)
                 nn.init.constant_(m.bias, 0)
-            elif isinstance(m, Bottleneck) and m.bn3.weight is not None:
-                nn.init.constant_(m.bn3.weight, 0)  # type: ignore[arg-type]
+            elif isinstance(m, Bottleneck) and m.norm3.weight is not None:
+                nn.init.constant_(m.norm3.weight, 0)  # type: ignore[arg-type]
             elif isinstance(m, BasicBlock) and m.norm2.weight is not None:
                 nn.init.constant_(m.norm2.weight, 0)  # type: ignore[arg-type]
 

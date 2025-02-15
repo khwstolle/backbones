@@ -1,4 +1,4 @@
-from torch import Tensor, nn
+from torch import nn
 
 __all__ = ["BackboneInterface"]
 

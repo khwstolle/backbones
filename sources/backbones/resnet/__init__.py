@@ -1,2 +1,2 @@
 from ._modules import *
-from .recipes import *
+from .configs import *
