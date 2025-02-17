@@ -16,8 +16,9 @@ This library was created to solve the following problems.
 3. Allow both training and inference of the sub-networks.
 """
 
-from . import resnet, swin
-from ._extract import *
+from .resnet import _modules
+from . import swin
+from ._features import *
 from ._interface import *
 from ._io import *
 from ._normalize import *

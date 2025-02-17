@@ -13,7 +13,7 @@ from collections.abc import Callable
 from functools import partial
 from typing import Any
 
-from backbones._io import load_data, load_meta, save_weights
+from backbones._io import load_weights, load_meta, save_meta
 
 
 class cli:
@@ -172,7 +172,7 @@ def version() -> None:
 @cli
 def meta(path: pathlib.Path, /, *, yes: bool = False, **overrides) -> None:
     """Read metadata of a weights file."""
-    meta = load_meta(path, missing_ok=True)
+    meta = load_meta(path)
     for k, v in overrides.items():
         if (isinstance(v, str) and v == "") or v is None:
             del meta[k]
@@ -188,8 +188,15 @@ def meta(path: pathlib.Path, /, *, yes: bool = False, **overrides) -> None:
         yes = cli.query_bool("Save modified metadata to weights file?", default=False)
     if not yes:
         return
-    data = load_data(path, device="cpu")  # cannot write meta only...
-    save_weights((data, meta), path)
+    save_meta(path, meta)
+
+
+@cli
+def keys(path: pathlib.Path, /) -> None:
+    """Read metadata of a weights file."""
+    data = load_weights(path, device="cpu")  # cannot write meta only...
+    for key in sorted(data.keys()):
+        print(key)
 
 
 @cli

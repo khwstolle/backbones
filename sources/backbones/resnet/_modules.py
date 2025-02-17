@@ -23,8 +23,6 @@ DEFAULT_ACTIVATION: typing.Final[ActivationType] = InplaceReLU
 
 
 class BlockProtocol(typing.Protocol):
-    expansion: typing.ClassVar
-
     def __new__(  # noqa: PLR0913
         cls,
         dim_in: int,
@@ -32,16 +30,17 @@ class BlockProtocol(typing.Protocol):
         stride: int,
         residual: nn.Module | None,
         dilation: int,
+        expansion: int,
         /,
-        *args: typing.Any,
+        *,
         norm: NormType,
         activation: ActivationType,
+        **kwargs: typing.Any,
     ) -> nn.Module: ...
 
 
 class BasicBlock(nn.Module):
     stride: typing.Final[int]
-    expansion = 1
 
     def __init__(  # noqa: PLR0913
         self,
@@ -50,16 +49,23 @@ class BasicBlock(nn.Module):
         stride: int,
         residual: nn.Module | None,
         dilation: int = 1,
+        expansion: int = 1,
         /,
         *,
         norm: NormType = DEFAULT_NORM,
         activation: ActivationType = DEFAULT_ACTIVATION,
+        **kwargs,
     ) -> None:
-        super().__init__()  # noqa: W291
+        super().__init__(**kwargs)  # noqa: W291
 
         if dilation != 1:
             msg = (
                 f"{self.__class__.__name__} does not support {dilation=} (expected 1)."
+            )
+            raise ValueError(msg)
+        if expansion != 1:
+            msg = (
+                f"{self.__class__.__name__} does not support {expansion=} (expected 1)."
             )
             raise ValueError(msg)
 
@@ -86,7 +92,6 @@ class BasicBlock(nn.Module):
 
 class Bottleneck(nn.Module):
     stride: typing.Final[int]
-    expansion = 4
 
     def __init__(  # noqa: PLR0913
         self,
@@ -95,14 +100,16 @@ class Bottleneck(nn.Module):
         stride: int,
         residual: nn.Module | None,
         dilation: int,
+        expansion: int,
         /,
         groups: int = 1,
         group_width: int = 64,
         *,
         norm: NormType = DEFAULT_NORM,
         activation: ActivationType = DEFAULT_ACTIVATION,
+        **kwargs,
     ) -> None:
-        super().__init__()
+        super().__init__(**kwargs)
 
         width = int(dim_out * (group_width / 64.0)) * groups
 
@@ -110,8 +117,8 @@ class Bottleneck(nn.Module):
         self.norm1 = norm(width)
         self.conv2 = _build_conv2d_33(width, width, stride, groups, dilation)
         self.norm2 = norm(width)
-        self.conv3 = _build_linear2d(width, dim_out * self.expansion)
-        self.norm3 = norm(dim_out * self.expansion)
+        self.conv3 = _build_linear2d(width, dim_out * expansion)
+        self.norm3 = norm(dim_out * expansion)
         self.activation = activation()
         self.residual = residual if residual is not None else nn.Identity()
         self.stride = stride
@@ -138,8 +145,9 @@ class ResNet(nn.Module):
     def __init__(  # noqa: C901, PLR0913
         self,
         block: type[BlockProtocol],
-        block_layers: tuple[int, int, int, int],
+        layers: tuple[int, int, int, int],
         *,
+        expansion: int = 1,
         groups: int = 1,
         group_width: int = 64,
         norm: NormType = DEFAULT_NORM,
@@ -191,10 +199,16 @@ class ResNet(nn.Module):
             if dilate:
                 dilation *= stride
                 stride = 1
-            if stride != 1 or inplanes != planes * block.expansion:
+            if stride != 1 or inplanes != planes * expansion:
                 residual = nn.Sequential(
-                    _build_linear2d(inplanes, planes * block.expansion, stride),
-                    norm(planes * block.expansion),
+                    OrderedDict(
+                        {
+                            "conv": _build_linear2d(
+                                inplanes, planes * expansion, stride
+                            ),
+                            "norm": norm(planes * expansion),
+                        }
+                    )
                 )
 
             layers = nn.Sequential()
@@ -205,11 +219,12 @@ class ResNet(nn.Module):
                     stride,
                     residual,
                     previous_dilation,
+                    expansion,
                     norm=norm,
                     activation=activation,
                 )
             )
-            inplanes = planes * block.expansion
+            inplanes = planes * expansion
             for _ in range(1, blocks):
                 layers.append(
                     block(
@@ -218,6 +233,7 @@ class ResNet(nn.Module):
                         1,
                         None,
                         dilation,
+                        expansion,
                         norm=norm,
                         activation=activation,
                     )
@@ -225,10 +241,10 @@ class ResNet(nn.Module):
 
             return layers
 
-        self.layer1 = _build_layer(64, block_layers[0], 1, False)
-        self.layer2 = _build_layer(128, block_layers[1], 2, use_dilation[0])
-        self.layer3 = _build_layer(256, block_layers[2], 2, use_dilation[1])
-        self.layer4 = _build_layer(512, block_layers[3], 2, use_dilation[2])
+        self.ext1 = _build_layer(64, layers[0], 1, False)
+        self.ext2 = _build_layer(128, layers[1], 2, use_dilation[0])
+        self.ext3 = _build_layer(256, layers[2], 2, use_dilation[1])
+        self.ext4 = _build_layer(512, layers[3], 2, use_dilation[2])
 
         if num_classes is not None:
             self.head = nn.Sequential(
@@ -236,7 +252,7 @@ class ResNet(nn.Module):
                     {
                         "pool": nn.AdaptiveAvgPool2d((1, 1)),
                         "flat": nn.Flatten(1),
-                        "proj": nn.Linear(512 * block.expansion, num_classes),
+                        "proj": nn.Linear(512 * expansion, num_classes),
                     }
                 )
             )
@@ -260,10 +276,10 @@ class ResNet(nn.Module):
     def _forward_resnet(self, x: Tensor) -> Tensor:
         for layer in (
             self.stem,
-            self.layer1,
-            self.layer2,
-            self.layer3,
-            self.layer4,
+            self.ext1,
+            self.ext2,
+            self.ext3,
+            self.ext4,
             self.head,
         ):
             x = layer(x)

@@ -1,110 +1,86 @@
-r"""
-Build recipes for creating a backbone module from a name and corresponding weights.
-"""
+from typing import Final
 
-from functools import partial
+from unipercept.config.language import call, partial
 
 from ._modules import BasicBlock, Bottleneck, ResNet
 
-
-def resnet18() -> ResNet:
-    """
-    ResNet-18 from `Deep Residual Learning for Image Recognition <https://arxiv.org/abs/1512.03385>`__.
-    """
-    return ResNet(
-        BasicBlock,
-        (2, 2, 2, 2),
-    )
-
-
-def resnet34() -> ResNet:
-    r"""
-    ResNet-34 from `Deep Residual Learning for Image Recognition <https://arxiv.org/abs/1512.03385>`__.
-    """
-    return ResNet(
-        BasicBlock,
-        (3, 4, 6, 3),
-    )
+__all__ = [
+    "RESNET_18",
+    "RESNET_34",
+    "RESNET_50",
+    "RESNET_101",
+    "RESNET_152",
+    "RESNEXT_50_32x4D",
+    "RESNEXT_101_32x8D",
+    "RESNEXT_101_64x4D",
+    "WIDE_RESNET_50",
+    "WIDE_RESNET_101",
+]
 
 
-def resnet50() -> ResNet:
-    r"""
-    ResNet-50 from `Deep Residual Learning for Image Recognition <https://arxiv.org/abs/1512.03385>`__.
-    """
-    return ResNet(
-        Bottleneck,
-        (3, 4, 6, 3),
-    )
+RESNET_18: Final = call(ResNet)(
+    block=partial(BasicBlock)(),
+    layers=(2, 2, 2, 2),
+)
 
 
-def resnet101() -> ResNet:
-    r"""
-    ResNet-101 from `Deep Residual Learning for Image Recognition <https://arxiv.org/abs/1512.03385>`__.
-    """
-    return ResNet(
-        Bottleneck,
-        (3, 4, 23, 3),
-    )
+RESNET_34: Final = call(ResNet)(
+    block=partial(BasicBlock)(),
+    layers=(3, 4, 6, 3),
+)
 
 
-def resnet152() -> ResNet:
-    r"""
-    ResNet-152 from `Deep Residual Learning for Image Recognition <https://arxiv.org/abs/1512.03385>`__.
-    """
-    return ResNet(
-        Bottleneck,
-        (3, 8, 36, 3),
-    )
+RESNET_50: Final = call(ResNet)(
+    block=partial(Bottleneck)(),
+    layers=(3, 4, 6, 3),
+    expansion=4,
+)
 
 
-def resnext50_32x4d() -> ResNet:
-    r"""
-    ResNeXt-50 32x4d model from
-    `Aggregated Residual Transformation for Deep Neural Networks <https://arxiv.org/abs/1611.05431>`_.
-    """
-    return ResNet(
-        partial(Bottleneck, groups=32, group_width=4),
-        (3, 4, 6, 3),
-    )
+RESNET_101: Final = call(ResNet)(
+    block=partial(Bottleneck)(),
+    layers=(3, 4, 23, 3),
+    expansion=4,
+)
 
 
-def resnext101_32x8d() -> ResNet:
-    r"""
-    ResNeXt-101 32x8d model from
-    `Aggregated Residual Transformation for Deep Neural Networks <https://arxiv.org/abs/1611.05431>`_.
-    """
-    return ResNet(
-        partial(Bottleneck, groups=32, group_width=8),
-        (3, 4, 23, 3),
-    )
+RESNET_152: Final = call(ResNet)(
+    block=partial(Bottleneck)(),
+    layers=(3, 8, 36, 3),
+    expansion=4,
+)
 
 
-def resnext101_64x4d() -> ResNet:
-    r"""
-    ResNeXt-101 64x4d model from
-    `Aggregated Residual Transformation for Deep Neural Networks <https://arxiv.org/abs/1611.05431>`_.
-    """
-    return ResNet(
-        partial(Bottleneck, group_width=64),
-        (3, 4, 23, 3),
-    )
+RESNEXT_50_32x4D: Final = call(ResNet)(
+    block=partial(Bottleneck)(groups=32, group_width=4),
+    layers=(3, 4, 6, 3),
+    expansion=4,
+)
 
 
-def wide_resnet50() -> ResNet:
-    """Wide ResNet-50 model from
-    `Wide Residual Networks <https://arxiv.org/abs/1605.07146>`_.
-    """
-    return ResNet(
-        partial(Bottleneck, group_width=128),
-        (3, 4, 6, 3),
-    )
+RESNEXT_101_32x8D: Final = call(ResNet)(
+    block=partial(Bottleneck)(groups=32, group_width=8),
+    layers=(3, 4, 23, 3),
+    expansion=4,
+)
 
 
-def wide_resnet101() -> ResNet:
-    """Wide ResNet-101 model from
-    `Wide Residual Networks <https://arxiv.org/abs/1605.07146>`_.
-    """
-    return ResNet(
-        partial(Bottleneck, group_width=128),
-        (3, 4, 23, 3),
-    )
+RESNEXT_101_64x4D: Final = call(ResNet)(
+    block=partial(Bottleneck)(group_width=64),
+    layers=(3, 4, 23, 3),
+    expansion=4,
+)
+
+
+WIDE_RESNET_50: Final = call(ResNet)(
+    block=partial(Bottleneck)(group_width=128),
+    layers=(3, 4, 6, 3),
+    expansion=4,
+)
+
+
+WIDE_RESNET_101: Final = call(ResNet)(
+    block=partial(Bottleneck)(group_width=128),
+    layers=(3, 4, 23, 3),
+    expansion=4,
+)

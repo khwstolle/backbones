@@ -1,35 +1,42 @@
-import json
 import pathlib
-import pydoc
-from collections.abc import Callable
-from itertools import chain
-from typing import Any, NamedTuple, TypeGuard, cast
-
+from datetime import datetime
+from typing import Any, TypeGuard, cast, overload
+import warnings
 import safetensors
 import safetensors.torch
 import torch
 import torch.nn
 import torch.types
 
-from backbones._extract import extract_features
-
 __all__ = [
-    "load_meta",
-    "check_meta",
     "load_weights",
     "save_weights",
-    "load_data",
-    "check_data",
-    "load_model",
+    "load_meta",
+    "save_meta",
+    "StateDict",
 ]
 
 type PathLike = pathlib.Path | str
 type DeviceLike = str | int
-type WeightMeta = dict[str, str]
-type WeightData = dict[str, torch.Tensor]
+
+type StateDict = dict[str, torch.Tensor]
 
 
-def load_data(path: PathLike, *, device: DeviceLike) -> WeightData:
+@overload
+def load_weights(
+    path: PathLike, model: torch.nn.Module, *, device: DeviceLike
+) -> None: ...
+
+
+@overload
+def load_weights(
+    path: PathLike, model: None = None, *, device: DeviceLike
+) -> StateDict: ...
+
+
+def load_weights(
+    path: PathLike, model: torch.nn.Module | None = None, *, device: DeviceLike
+) -> StateDict | None:
     r"""
     Read a state dict and respective metadata from a weights file.
 
@@ -37,8 +44,21 @@ def load_data(path: PathLike, *, device: DeviceLike) -> WeightData:
     code.
     """
     path = _parse_path(path)
+
+    if model is not None:
+        keys_missing, keys_unexpected = safetensors.torch.load_model(
+            model, path, strict=False, device=device
+        )
+        if len(keys_unexpected) > 0:
+            msg = f"Unexpected keys: {keys_unexpected}."
+            warnings.warn(msg, stacklevel=2)
+        if len(keys_missing) > 0:
+            msg = f"Missing keys: {keys_missing}."
+            raise RuntimeError(msg)
+        return None
+
     data = cast(object, safetensors.torch.load_file(path, device=device))  # type: ignore[arg-type]
-    if not check_data(data):
+    if not check_weights(data):
         if isinstance(data, dict):
             key_types = str({type(k) for k in data})  # type: ignore[arg-type]
             val_types = str({type(v) for v in data.values()})  # type: ignore[arg-type]
@@ -52,7 +72,7 @@ def load_data(path: PathLike, *, device: DeviceLike) -> WeightData:
     return data
 
 
-def check_data(state: object) -> TypeGuard[WeightData]:
+def check_weights(state: object) -> TypeGuard[StateDict]:
     if not isinstance(state, dict):
         msg = f"Expected state to be a dict, got {type(state)}"
         raise TypeError(msg)
@@ -62,98 +82,29 @@ def check_data(state: object) -> TypeGuard[WeightData]:
     )
 
 
-def load_meta(path: PathLike, *, missing_ok: bool = True) -> WeightMeta:
-    path = _parse_path(path)
-    with _open(path, device="cpu") as file:  # type: ignore[arg-type]
-        data = cast(object, file.metadata())  # type: ignore[arg-type]
-    if data is None and missing_ok:
-        return {}
-    if not check_meta(data):
-        if isinstance(data, dict):
-            key_types = str({type(k) for k in data})  # type: ignore[arg-type]
-            val_types = str({type(v) for v in data.values()})  # type: ignore[arg-type]
-        else:
-            key_types = val_types = "unknown"
-        msg = (
-            f"Expected metadata to be a mapping str -> Tensor, got {key_types} -> "
-            f"{val_types}"
-        )
-        raise TypeError(msg)
-    return data
-
-
-def check_meta(meta: object) -> TypeGuard[WeightMeta]:
-    if not isinstance(meta, dict):
-        msg = f"Expected metadata to be a dict, got {type(meta)}"
-        raise TypeError(msg)
-    meta = cast(dict[Any, Any], meta)
-    return all(isinstance(v, str) for v in chain(meta.values(), meta.keys()))
-
-
-class Weights(NamedTuple):
-    data: WeightData
-    meta: WeightMeta
-
-
-def load_weights(
-    path: PathLike, *, device: DeviceLike
-) -> tuple[WeightData, WeightMeta]:
-    r"""
-    Load weights.
-    """
-    path = _parse_path(path)
-    return Weights(load_data(path, device=device), load_meta(path))
-
-
-def save_weights(wt: Weights | tuple[WeightData, WeightMeta], path: PathLike):
+def save_weights(
+    data: StateDict, path: PathLike, *, meta: dict[str, str] | None = None
+):
     r"""
     Save weights.
     """
+    data_path = _parse_path(path)
+    data_meta = {"framework": "pt", "timestamp": datetime.now().isoformat()}
+    if meta is not None:
+        data_meta.update(meta)
+    safetensors.torch.save_file(data, data_path, data_meta)
+
+
+def load_meta(path: PathLike) -> dict[str, str]:
     path = _parse_path(path)
-    data, meta = wt
-    safetensors.torch.save_file(data, path, meta)
+    with safetensors.safe_open(path, framework="pt", device="cpu") as st:
+        return st.metadata()
 
 
-def load_model(path: PathLike, *, device: DeviceLike) -> torch.fx.GraphModule:
+def save_meta(path: PathLike, meta: dict[str, str]) -> None:
     path = _parse_path(path)
-    data, meta = load_weights(path, device=device)
-
-    # Find the config - i.e. callable to initialize the model
-    config = _locate_config(meta["config"])
-    model = config().to(device)
-
-    # Use FX-tracing to select the relevant features from this model
-    features = json.loads(meta["features"])
-    assert isinstance(features, list | dict), type(features)
-    model = extract_features(model, features)
-
-    # Load the state dict
-    keys_miss, keys_ndef = model.load_state_dict(data, strict=False)
-    if (num_miss := len(keys_miss)) + (num_ndef := len(keys_ndef)) > 0:
-        err_miss, err_ndef = (
-            ("\n - " + "\n - ".join(keys)) if len(keys) > 0 else "(none)"
-            for keys in (keys_miss, keys_ndef)
-        )
-        msg = (
-            f"Found missing ({num_miss}) or undefined ({num_ndef}) weights in "
-            f"weights file: {path}\n\n "
-            f"Missing: {err_miss}\n\nUndefined: {err_ndef}"
-        )
-        raise RuntimeError(msg)
-    return model
-
-
-def _locate_config(path: pathlib.Path) -> Callable[[], torch.nn.Module]:
-    fn = pydoc.locate(path)
-    if not callable(fn):
-        msg = f"Could not locate configuration function. Got: {fn}"
-        raise ValueError(msg)
-    return fn
-
-
-def _open(path: pathlib.Path, *, device: DeviceLike = "cpu") -> safetensors.safe_open:
-    path = pathlib.Path(path)
-    return safetensors.safe_open(str(path), "torch", device=device)
+    weights = load_weights(path, device="cpu")
+    save_weights(weights, path, meta=meta)
 
 
 def _parse_path(path: PathLike) -> pathlib.Path:

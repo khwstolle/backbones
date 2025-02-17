@@ -14,8 +14,8 @@ from torchvision.transforms.v2 import functional as T
 
 __all__ = ["Normalize", "Denormalize"]
 
-IMAGENET_MEAN = [0.485, 0.456, 0.406]
-IMAGENET_STD = [0.229, 0.224, 0.225]
+IMAGENET_MEAN = (0.485, 0.456, 0.406)
+IMAGENET_STD = (0.229, 0.224, 0.225)
 
 type RGB = tuple[float, float, float]
 
@@ -49,24 +49,25 @@ class Normalize(Transform):
 
     @classmethod
     def from_json(cls, data: str, **kwargs: Any) -> Self:
-        data = json.loads(data)
-        if not isinstance(data, dict):
-            msg = f"Expected normalization JSON to be a dict, got: {data}"
+        params = json.loads(data)
+        if not isinstance(params, dict):
+            msg = f"Expected normalization JSON to be a dict, got: {params}"
             raise TypeError(msg)
 
-        def _check_stats(s: Any) -> None:
+        def _parse_stats(s: Any) -> RGB:
             if not isinstance(s, list):
                 msg = f"Expected normalization stats to be a list, got: {s}"
                 raise TypeError(msg)
             if not all(isinstance(v, float) for v in s):
                 msg = f"Expected floats for normalization stats, got: {s}"
                 raise TypeError(msg)
+            if len(s) != 3:
+                msg = f"Expected 3 values for normalization stats, got: {len(s)}"
+                raise ValueError(msg)
+            return tuple(s)
 
-        img_mean = data["mean"]
-        _check_stats(img_mean)
-        img_std = data["std"]
-        _check_stats(img_std)
-
+        img_mean = _parse_stats(params["mean"])
+        img_std = _parse_stats(params["std"])
         return cls(img_mean, img_std, **kwargs)
 
 
@@ -75,6 +76,7 @@ class Denormalize(Normalize):
     The inverse of :class:`Normalize`.
     """
 
+    @override
     def transform(self, inpt: Tensor, params: dict[str, Any]) -> Tensor:
         inv_mean = [-m for m in self.mean]
         inv_std = [1.0 / s for s in self.std]
