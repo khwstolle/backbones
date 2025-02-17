@@ -23,7 +23,8 @@ def convert_detectron2(path: pathlib.Path, /) -> None:
         case ".pth":
             w_d2 = torch.load(path, map_location="cpu")
         case _:
-            raise ValueError(f"Unsupported input format: {path.suffix}")
+            msg = f"Unsupported input format: {path.suffix}"
+            raise ValueError(msg)
 
     # Map to ours
     w_bb = {
@@ -71,7 +72,8 @@ def convert_torchvision(path: pathlib.Path, /):
         case ".pth":
             w_tv = torch.load(path, map_location="cpu")
         case _:
-            raise ValueError(f"Unsupported input format: {path.suffix}")
+            msg = f"Unsupported input format: {path.suffix}"
+            raise ValueError(msg)
 
     # Map to ours
     w_bb = {

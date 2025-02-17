@@ -16,7 +16,13 @@ import torch
 import torch.fx
 import torch.nn
 
-__all__ = ["FeatureInfo", "FeatureFormat", "FeatureDict", "extract_features", "probe_features"]
+__all__ = [
+    "FeatureInfo",
+    "FeatureFormat",
+    "FeatureDict",
+    "extract_features",
+    "probe_features",
+]
 
 
 class FeatureInfo(typing.TypedDict):
@@ -34,7 +40,9 @@ class FeatureInfo(typing.TypedDict):
     channels: int
     stride: int
 
+
 type FeatureDict = dict[str, FeatureInfo]
+
 
 class FeatureFormat(enum.StrEnum):
     """The format of the extracted features."""
@@ -42,9 +50,15 @@ class FeatureFormat(enum.StrEnum):
     CHW = "CHW"
     HWC = "HWC"
 
+
 FeatureFormatType = typing.Literal["CHW", "HWC"] | FeatureFormat
 
-type FeatureModule = typing.Callable[[torch.Tensor], typing.Mapping[str, torch.Tensor]] | torch.nn.Module | torch.fx.GraphModule
+type FeatureModule = (
+    typing.Callable[[torch.Tensor], typing.Mapping[str, torch.Tensor]]
+    | torch.nn.Module
+    | torch.fx.GraphModule
+)
+
 
 def probe_features(
     bb: FeatureModule,
@@ -71,12 +85,11 @@ def probe_features(
 
     bb = copy.deepcopy(bb)
     if isinstance(bb, torch.nn.Module | torch.fx.GraphModule):
-        bb.eval() # type: ignore[union-attr]
+        bb.eval()  # type: ignore[union-attr]
 
     def _probe_output_shapes(
         mod: FeatureModule,
     ) -> dict[str, torch.Size]:
-
         with torch.no_grad():
             inp = torch.randn((8, 3, *shape), dtype=torch.float32)
             out = mod(inp)
@@ -109,7 +122,6 @@ def probe_features(
         stride_h = shape[0] // h
         stride_w = shape[1] // w
 
-        # TODO: This is not always true, e.g. for Swin Transformers with patch size 4 and stride 2, add support.
         assert stride_h == stride_w, (
             f"Stride must be equal in both dimensions, got {stride_h} and {stride_w}. "
             f"Size of input was {shape}, size of output was {shape}, order is {order}."
@@ -121,6 +133,7 @@ def probe_features(
         assert stride > 0, shape
 
         return FeatureInfo(channels=c, stride=stride)
+
     return {k: _shape_to_info(v) for k, v in _probe_output_shapes(bb).items()}
 
 
@@ -129,5 +142,4 @@ def extract_features(
 ) -> torch.fx.GraphModule:
     from torchvision.models.feature_extraction import create_feature_extractor
 
-    gm = create_feature_extractor(model, features)
-    return gm
+    return create_feature_extractor(model, features)

@@ -61,7 +61,7 @@ class Normalize(Transform):
             if not all(isinstance(v, float) for v in s):
                 msg = f"Expected floats for normalization stats, got: {s}"
                 raise TypeError(msg)
-            if len(s) != 3:
+            if len(s) != 3:  # noqa: PLR2004
                 msg = f"Expected 3 values for normalization stats, got: {len(s)}"
                 raise ValueError(msg)
             return tuple(s)

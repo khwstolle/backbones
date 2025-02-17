@@ -152,7 +152,7 @@ class cli:
                         )
                     )
                 case unsupported_kind:
-                    msg = f"Cannot add {param.name} ({unsupported_kind}) to argument parser: {param}"
+                    msg = f"Cannot add {param.name} ({unsupported_kind}) to parser."
                     raise NotImplementedError(msg)
 
         # First add flags, then positionals
