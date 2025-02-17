@@ -102,7 +102,29 @@ def save_weights(
 def load_meta(path: PathLike) -> dict[str, str]:
     path = _parse_path(path)
     with safetensors.safe_open(path, framework="pt", device="cpu") as st:
-        return st.metadata()
+        meta = st.metadata()
+    if meta is None:
+        return {}
+    check_meta(meta, raises=True)
+    return meta
+
+
+def check_meta(meta: Any, *, raises=True) -> TypeGuard[dict[str, str]]:
+    if not isinstance(meta, dict):
+        if raises:
+            msg = f"Expected metadata to be a dict, got {type(meta)}"
+            raise TypeError(msg)
+        return False
+    for k, v in meta.items():
+        if not isinstance(k, str) or not isinstance(v, str):
+            if raises:
+                msg = (
+                    f"Expected metadata to be a str -> str mapping, got {k}: "
+                    f"{type(k)} -> {type(v)}"
+                )
+                raise TypeError(msg)
+            return False
+    return True
 
 
 def save_meta(path: PathLike, meta: dict[str, str]) -> None:
