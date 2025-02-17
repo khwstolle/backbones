@@ -13,7 +13,7 @@ import warnings
 from collections.abc import Callable
 from functools import partial
 from pprint import pformat
-from typing import Any, cast
+from typing import Any
 
 from unipercept.log import logger
 
@@ -277,15 +277,13 @@ def export(
     Export a pre-trained network using `torch.export`.
     """
 
-    import importlib
 
     import torch.export
     import torch.nn
-    import unipercept.config.lazy
 
     from ._export import export
     from ._features import extract_features
-    from ._io import load_meta, load_weights
+    from ._io import load_model
 
     # Sanitization: features to export
     if len(features_list) == 0 and len(features_map) == 0:
@@ -296,35 +294,8 @@ def export(
         msg = "Cannot export the same feature multiple times."
         raise ValueError(msg)
 
-    # Locate configuration from metadata
-    meta = load_meta(path)
-    if "config" not in meta:
-        msg = "The weights file must contain a 'config' metadata entry."
-        raise KeyError(msg)
-    cfg_meta = meta["config"]
-
-    logger.info("Loading configuration: %s", cfg_meta)
-
-    cfg_src, cfg_attr = cfg_meta.split(":")
-
-    def _is_safe_module(config_import: str) -> bool:
-        return config_import.startswith("backbones.")
-
-    if not unsafe and not _is_safe_module(cfg_src):
-        msg = f"Refusing to import from {cfg_src}, use --unsafe to override."
-        raise ValueError(msg)
-
-    cfg_mod = importlib.import_module(cfg_src)
-    cfg = getattr(cfg_mod, cfg_attr)
-
-    # Instantiate model
-    logger.info("Instantiating model...")
-
-    model = cast(torch.nn.Module, unipercept.config.lazy.instantiate(cfg))
-
-    # Load weights
-    logger.info("Loading weights: %s", path)
-    load_weights(path, model, device=device)
+    # Load model
+    model = load_model(path, device=device, unsafe=unsafe)
 
     # Extract features
     features = {**dict.fromkeys(features_list, features_list), **features_map}

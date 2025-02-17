@@ -1,7 +1,7 @@
 import pathlib
 import warnings
 from datetime import datetime
-from typing import Any, TypeGuard, cast, overload
+from typing import Any, Final, TypeGuard, cast, overload
 
 import safetensors
 import safetensors.torch
@@ -15,12 +15,15 @@ __all__ = [
     "load_meta",
     "save_meta",
     "StateDict",
+    "load_model",
 ]
 
 type PathLike = pathlib.Path | str
 type DeviceLike = str | int
 
 type StateDict = dict[str, torch.Tensor]
+
+DEFAULT_DEVICE: Final = "cpu"
 
 
 @overload
@@ -110,3 +113,32 @@ def save_meta(path: PathLike, meta: dict[str, str]) -> None:
 
 def _parse_path(path: PathLike) -> pathlib.Path:
     return pathlib.Path(path).resolve()
+
+
+def load_model(
+    path: PathLike, *, device: DeviceLike = DEFAULT_DEVICE, unsafe: bool = False
+) -> torch.nn.Module:
+    import importlib
+
+    import unipercept.config.lazy
+
+    path = _parse_path(path)
+    meta = load_meta(path)
+    cfg_meta = meta["config"]
+    cfg_src, cfg_attr = cfg_meta.split(":")
+
+    def _is_safe_module(config_import: str) -> bool:
+        return config_import.startswith("backbones.")
+
+    if not unsafe and not _is_safe_module(cfg_src):
+        msg = f"Refusing to import from {cfg_src}, use --unsafe to override."
+        raise ValueError(msg)
+
+    cfg_mod = importlib.import_module(cfg_src)
+    cfg = getattr(cfg_mod, cfg_attr)
+
+    model = cast(torch.nn.Module, unipercept.config.lazy.instantiate(cfg))
+
+    load_weights(path, model, device=device)
+
+    return model
