@@ -1,7 +1,8 @@
 import pathlib
+import warnings
 from datetime import datetime
 from typing import Any, TypeGuard, cast, overload
-import warnings
+
 import safetensors
 import safetensors.torch
 import torch

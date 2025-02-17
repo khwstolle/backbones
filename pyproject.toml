@@ -15,7 +15,7 @@ name = "backbones"
 description = "Backbone networks for computer vision research."
 readme = "README.md"
 requires-python = ">=3.12"
-authors = [{ name = "Kurt Stolle", email = "kurt@computer.org" }]
+authors = [{ name = "Kurt Stolle", email = "kurt@khws.io" }]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Programming Language :: Python",
@@ -27,6 +27,8 @@ dependencies = [
     "torchvision",
     "safetensors",
     "nvidia-ml-py",
+    "regex",
+    "unipercept",
 ]
 dynamic = ["version"]
 
@@ -35,9 +37,6 @@ version = { attr = "backbones.__version__" }
 
 [project.entry-points.console_scripts]
 backbones = "backbones._cli:cli.main"
-
-[project.entry-points.'unipercept.backbones']
-backbones = "backbones._interface:BackboneInterface"
 
 [tool.setuptools]
 include-package-data = false

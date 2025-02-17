@@ -9,11 +9,13 @@ import inspect
 import json
 import pathlib
 import sys
+import warnings
 from collections.abc import Callable
 from functools import partial
-from typing import Any
+from pprint import pformat
+from typing import Any, cast
 
-from backbones._io import load_weights, load_meta, save_meta
+from unipercept.log import logger
 
 
 class cli:
@@ -49,9 +51,24 @@ class cli:
 
         return 0
 
-    @classmethod
-    def _get_arg_name(cls, param) -> str:
+    @staticmethod
+    def _get_arg_name(param) -> str:
         return param.name.replace("_", "-")
+
+    @staticmethod
+    def _get_arg_type(param) -> Any:
+        arg_type = param.annotation if param.annotation != param.empty else str
+        if not callable(arg_type):
+            warnings.warn(f"Invalid type annotation: {arg_type}", stacklevel=2)
+            arg_type = str
+        if not isinstance(arg_type, type):
+            warnings.warn(f"Invalid type annotation: {arg_type}", stacklevel=2)
+            arg_type = str
+        return arg_type
+
+    @staticmethod
+    def _get_arg_default(param) -> Any:
+        return param.default if param.default is not param.empty else None
 
     @classmethod
     def _add_parser(
@@ -59,51 +76,90 @@ class cli:
     ) -> None:
         """Add arguments to parser based on function signature."""
         sig = inspect.signature(func)
+        args_pos = []
+        args_flag = []
         for param in sig.parameters.values():
             arg_required = param.default is param.empty
+            arg_type = cls._get_arg_type(param)
             match param.kind:
                 case param.POSITIONAL_ONLY:
-                    parser.add_argument(
-                        cls._get_arg_name(param),
-                        default=param.default
-                        if param.default is not param.empty
-                        else None,
-                        help=f"{param.annotation.__name__}",
+                    args_pos.append(
+                        partial(
+                            parser.add_argument,
+                            param.name,
+                            metavar=param.name.upper(),
+                            default=param.default
+                            if param.default is not param.empty
+                            else None,
+                            help=f"{param.name} {param.annotation.__name__.lower()}",
+                        )
+                    )
+                case param.VAR_POSITIONAL:
+                    args_pos.append(
+                        partial(
+                            parser.add_argument,
+                            "--" + cls._get_arg_name(param),
+                            dest=param.name,
+                            metavar=arg_type.__name__.upper(),
+                            type=arg_type,
+                            nargs="*",
+                            help=f"{param.annotation.__name__} (varargs)",
+                        )
                     )
                 case param.KEYWORD_ONLY:
                     if isinstance(param.annotation, bool):
-                        parser.add_argument(
-                            f"--{cls._get_arg_name(param)}",
-                            action="store_false"
-                            if param.default is True
-                            else "store_false",
-                            default=param.default
-                            if param.default is not param.empty
-                            else None,
+                        args_flag.append(
+                            partial(
+                                parser.add_argument,
+                                f"--{cls._get_arg_name(param)}",
+                                dest=param.name,
+                                action="store_false"
+                                if param.default is True
+                                else "store_false",
+                                default=param.default
+                                if param.default is not param.empty
+                                else None,
+                            )
                         )
                     else:
-                        parser.add_argument(
-                            f"--{cls._get_arg_name(param)}",
-                            type=param.annotation
-                            if param.annotation != param.empty
-                            else str,
-                            required=param.default is param.empty,
-                            default=param.default
-                            if param.default is not param.empty
-                            else None,
-                            help=f"{param.annotation.__name__}"
-                            if param.annotation != param.empty
-                            else "",
+                        args_flag.append(
+                            partial(
+                                parser.add_argument,
+                                f"--{cls._get_arg_name(param)}",
+                                type=arg_type,
+                                dest=param.name,
+                                metavar=param.name.upper(),
+                                required=arg_required,
+                                default=param.default
+                                if param.default is not param.empty
+                                else None,
+                                help=f"{param.annotation.__name__}"
+                                if param.annotation != param.empty
+                                else "",
+                            )
                         )
                 case param.VAR_KEYWORD:
-                    parser.add_argument(
-                        cls._get_arg_name(param),
-                        nargs=argparse.REMAINDER,
-                        help="key=value",
+                    args_pos.append(
+                        partial(
+                            parser.add_argument,
+                            param.name,
+                            metavar="KEY=VALUE",
+                            nargs=argparse.REMAINDER,
+                            help=param.name
+                            + " "
+                            + arg_type.__name__.lower()
+                            + " keywords",
+                        )
                     )
                 case unsupported_kind:
                     msg = f"Cannot add {param.name} ({unsupported_kind}) to argument parser: {param}"
                     raise NotImplementedError(msg)
+
+        # First add flags, then positionals
+        for arg in args_flag:
+            arg()
+        for arg in args_pos:
+            arg()
 
     @classmethod
     def _bind_arguments(
@@ -114,32 +170,27 @@ class cli:
         args_pos = []
         args_key = {}
         for param in inspect.signature(args._command).parameters.values():
-            key = cls._get_arg_name(param)
-            value = getattr(args, key)
-            if param.kind in (param.POSITIONAL_ONLY, param.POSITIONAL_OR_KEYWORD):
-                args_pos.append(value)
-                continue
-            if param.kind in (param.KEYWORD_ONLY,):
-                assert key not in args_key, args_key.keys()
-                args_key[key] = value
-                continue
-            if param.kind in (param.VAR_KEYWORD,):
-                if len(value) == 0:
-                    continue
-                type_as = (
-                    param.annotation
-                    if callable(param.annotation) and param.annotation != param.empty
-                    else lambda x: x
-                )
+            arg_type = cls._get_arg_type(param)
+            arg_value = getattr(args, param.name)
+            match param.kind:
+                case param.POSITIONAL_ONLY | param.POSITIONAL_OR_KEYWORD:
+                    args_pos.append(arg_type(arg_value))
+                case param.KEYWORD_ONLY:
+                    args_key[param.name] = arg_type(arg_value)
+                case param.VAR_POSITIONAL:
+                    if arg_value is None or len(arg_value) == 0:
+                        continue
+                    args_pos.extend(arg_type(v) for v in arg_value)
+                case param.VAR_KEYWORD:
+                    if arg_value is None or len(arg_value) == 0:
+                        continue
 
-                for var_key, var_value in (vs.split("=") for vs in value):
-                    args_key[var_key] = type_as(var_value)
-                continue
-
-            msg = f"Unknown parameter kind {param.kind}"
-            raise RuntimeError(msg)
-
-        return args_pos, args_key
+                    for var_key, var_value in (vs.split("=") for vs in arg_value):
+                        args_key[var_key] = arg_type(var_value)
+                case unknown_kind:
+                    msg = f"Unknown parameter kind {unknown_kind}"
+                    raise RuntimeError(msg)
+        return tuple(args_pos), args_key
 
     @staticmethod
     def query_bool(question, *, default: bool | None = None) -> bool:
@@ -172,6 +223,8 @@ def version() -> None:
 @cli
 def meta(path: pathlib.Path, /, *, yes: bool = False, **overrides) -> None:
     """Read metadata of a weights file."""
+    from ._io import load_meta, save_meta
+
     meta = load_meta(path)
     for k, v in overrides.items():
         if (isinstance(v, str) and v == "") or v is None:
@@ -194,6 +247,8 @@ def meta(path: pathlib.Path, /, *, yes: bool = False, **overrides) -> None:
 @cli
 def keys(path: pathlib.Path, /) -> None:
     """Read metadata of a weights file."""
+    from ._io import load_weights
+
     data = load_weights(path, device="cpu")  # cannot write meta only...
     for key in sorted(data.keys()):
         print(key)
@@ -210,13 +265,81 @@ def extract() -> None:
 
 
 @cli
-def export() -> None:
+def export(
+    path: pathlib.Path,
+    /,
+    *features_list: str,
+    device: str = "cpu",
+    unsafe: bool = False,
+    **features_map: str,
+) -> None:
     r"""
     Export a pre-trained network using `torch.export`.
     """
 
-    msg = "Exporting a pre-trained network is not yet implemented."
-    raise NotImplementedError(msg)
+    import importlib
+
+    import torch.export
+    import torch.nn
+    import unipercept.config.lazy
+
+    from ._export import export
+    from ._features import extract_features
+    from ._io import load_meta, load_weights
+
+    # Sanitization: features to export
+    if len(features_list) == 0 and len(features_map) == 0:
+        msg = "No features to export."
+        raise ValueError(msg)
+
+    if set(features_list) & set(features_map.keys()):
+        msg = "Cannot export the same feature multiple times."
+        raise ValueError(msg)
+
+    # Locate configuration from metadata
+    meta = load_meta(path)
+    if "config" not in meta:
+        msg = "The weights file must contain a 'config' metadata entry."
+        raise KeyError(msg)
+    cfg_meta = meta["config"]
+
+    logger.info("Loading configuration: %s", cfg_meta)
+
+    cfg_src, cfg_attr = cfg_meta.split(":")
+
+    def _is_safe_module(config_import: str) -> bool:
+        return config_import.startswith("backbones.")
+
+    if not unsafe and not _is_safe_module(cfg_src):
+        msg = f"Refusing to import from {cfg_src}, use --unsafe to override."
+        raise ValueError(msg)
+
+    cfg_mod = importlib.import_module(cfg_src)
+    cfg = getattr(cfg_mod, cfg_attr)
+
+    # Instantiate model
+    logger.info("Instantiating model...")
+
+    model = cast(torch.nn.Module, unipercept.config.lazy.instantiate(cfg))
+
+    # Load weights
+    logger.info("Loading weights: %s", path)
+    load_weights(path, model, device=device)
+
+    # Extract features
+    features = {**dict.fromkeys(features_list, features_list), **features_map}
+    logger.info("Extracting features: %s", pformat(features, indent=4))
+
+    model = extract_features(model, features)
+
+    # Export model
+    logger.info("Exporting model...")
+    model_export = export(model)
+
+    output = path.with_suffix(".pt2")
+    torch.export.save(model_export, output)
+
+    sys.stdout.write(str(output.resolve()) + "\n")
 
 
 @cli

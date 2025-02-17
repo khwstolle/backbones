@@ -47,7 +47,7 @@ FeatureFormatType = typing.Literal["CHW", "HWC"] | FeatureFormat
 type FeatureModule = typing.Callable[[torch.Tensor], typing.Mapping[str, torch.Tensor]] | torch.nn.Module | torch.fx.GraphModule
 
 def probe_features(
-    bb: FeatureModule, 
+    bb: FeatureModule,
     order: FeatureFormat,
     shape: tuple[int, int] = (512, 256),
 ) -> FeatureDict:
