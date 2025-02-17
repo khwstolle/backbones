@@ -16,12 +16,24 @@ This library was created to solve the following problems.
 3. Allow both training and inference of the sub-networks.
 """
 
-from . import swin
+from . import resnet, swin
 from ._export import *
 from ._features import *
 from ._interface import *
 from ._io import *
 from ._normalize import *
-from .resnet import _modules
 
-__version__ = "1.3.0"
+
+def __getattr__(name: str):
+    from importlib.metadata import PackageNotFoundError, version
+
+    match name:
+        case "__version__":
+            try:
+                return version(__name__)
+            except PackageNotFoundError:
+                return "unknown"
+        case _:
+            pass
+    msg = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(msg)
