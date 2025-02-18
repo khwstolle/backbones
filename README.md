@@ -1,5 +1,5 @@
-Backbones
-=========
+# Backbones
+
 A library of backbone architectures for neural networks, standardized for easy
 use in research and development.
 
@@ -13,13 +13,14 @@ This library was created to solve the following problems.
 
 3. Allow both training and inference of the sub-networks.
 
-Alternatives
-------------
+## Alternatives
+
 If you are looking for a more general-purpose library, consider using
 [Torchvision](https://pytorch.org/docs/stable/torchvision/index.html) or
 [Timm](https://github.com/huggingface/timm). These libraries are geared towards
-production, and are more feature-rich than this library. 
+production, and are more feature-rich than this library.
 
-See Also
---------
+## See Also
+
+- [Pre-trained models](https://huggingface.co/khwstolle/backbones)
 - [Backbones Documentation](https://gh.khws.io/backbones)
