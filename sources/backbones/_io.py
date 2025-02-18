@@ -141,8 +141,7 @@ def load_model(
     path: PathLike, *, device: DeviceLike = DEFAULT_DEVICE, unsafe: bool = False
 ) -> torch.nn.Module:
     import importlib
-
-    import unipercept.config.lazy
+    import laco
 
     path = _parse_path(path)
     meta = load_meta(path)
@@ -159,7 +158,7 @@ def load_model(
     cfg_mod = importlib.import_module(cfg_src)
     cfg = getattr(cfg_mod, cfg_attr)
 
-    model = cast(torch.nn.Module, unipercept.config.lazy.instantiate(cfg))
+    model = cast(torch.nn.Module, laco.instantiate(cfg))
 
     load_weights(path, model, device=device)
 

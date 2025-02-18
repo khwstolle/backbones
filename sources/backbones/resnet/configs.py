@@ -1,6 +1,6 @@
 from typing import Final
 
-from unipercept.config.language import call, partial
+from laco.language import call, partial
 
 from ._modules import BasicBlock, Bottleneck, ResNet
 
