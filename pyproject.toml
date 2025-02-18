@@ -30,6 +30,7 @@ dependencies = [
     "nvidia-ml-py",
     "regex",
     "laco",
+    "iopathlib",
 ]
 version = "0.0.1"
 #dynamic = ["version"]
