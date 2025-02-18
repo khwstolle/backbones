@@ -11,6 +11,7 @@ help:
 
 clean:
 	rm -rf build dist *.egg-info .pytest_cache .tox .coverage .hypothesis .mypy_cache .mypy .ruff .ruff_cache .pytest_cache .pytest .benchmarks .benchmarks_cache
+	find . -type d -name ".mypy_cache" -exec rm -rf {} +
 	find . -type d -name "__pycache__" -exec rm -rf {} +
 	find . -type f -name "*.pyc" -delete
 	

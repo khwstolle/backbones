@@ -29,9 +29,10 @@ dependencies = [
     "safetensors",
     "nvidia-ml-py",
     "regex",
-    "unipercept",
+    "laco",
 ]
-dynamic = ["version"]
+version = "0.0.1"
+#dynamic = ["version"]
 
 [tool.setuptools.dynamic]
 version = { attr = "backbones.__version__" }
@@ -43,7 +44,7 @@ backbones = "backbones._cli:cli.main"
 include-package-data = false
 
 [tool.setuptools.package-data]
-unipercept = ["py.typed"]
+backbones = ["py.typed", "*.pyi", "*.pyc"]
 
 [tool.setuptools.packages.find]
 where = ["sources"]
