@@ -140,6 +140,28 @@ def probe_features(
 def extract_features(
     model: torch.nn.Module, features: dict[str, str] | list[str]
 ) -> torch.fx.GraphModule:
+    """Extract features from a model using symbolic tracing.
+
+    Parameters
+    ----------
+    model : torch.nn.Module
+        The model to extract features from.
+    features : dicxt[str,str] or list[str]
+        The features to extract. If a dict is provided, then it should represent
+        a mapping of ``(node_name) -> (feature_name)``.
+
+    Returns
+    -------
+    torch.fx.GraphModule
+        A grpah module that returns the selected features from the `model`.
+
+    Notes
+    -----
+    This is a wrapper around the new Torchvision feature extractor, which implements
+    the exact same functionality as our JIT-based tracer, but is likely to receive
+    better support in the future. For this reason, the ``backbones`` library is
+    switching to using the Torchvision implementation.
+    """
     from torchvision.models.feature_extraction import create_feature_extractor
 
     return create_feature_extractor(model, features)

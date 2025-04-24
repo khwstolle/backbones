@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 keywords = [
-    "perception",
-    "computer vision",
-    "deep learning",
-    "object detection",
-    "instance segmentation",
-    "semantic segmentation",
+  "perception",
+  "computer vision",
+  "deep learning",
+  "object detection",
+  "instance segmentation",
+  "semantic segmentation",
 ]
 name = "backbones"
 description = "Backbone networks for computer vision research."
@@ -17,20 +17,20 @@ readme = "README.md"
 requires-python = ">=3.12"
 authors = [{ name = "Kurt Stolle", email = "kurt@khws.io" }]
 classifiers = [
-    "Development Status :: 4 - Beta",
-    "Programming Language :: Python",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: Implementation :: CPython",
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: Implementation :: CPython",
 ]
 dependencies = [
-    "torch >= 2.6.0",
-    "torchvision",
-    "safetensors",
-    "nvidia-ml-py",
-    "regex",
-    "laco",
-    "iopathlib",
+  "torch >= 2.6.0",
+  "torchvision",
+  "safetensors",
+  "nvidia-ml-py",
+  "regex",
+  "laco",
+  "expath",
 ]
 version = "0.0.1"
 #dynamic = ["version"]
@@ -55,20 +55,22 @@ namespaces = true
 
 [project.optional-dependencies]
 tests = [
-    "hypothesis",
-    "bandit[toml]",
-    "check-manifest",
-    "ruff",
-    "pre-commit",
-    "pytest",
-    "pytest-sugar",
-    "pytest-xdist",
-    "pytest-benchmark",
-    "pytest-cov",
-    "pytest-mock",
-    "pytest-runner",
-    "mccabe",
+  "hypothesis",
+  "bandit[toml]",
+  "check-manifest",
+  "ruff",
+  "pre-commit",
+  "pytest",
+  "pytest-sugar",
+  "pytest-xdist",
+  "pytest-benchmark",
+  "pytest-cov",
+  "pytest-mock",
+  "pytest-runner",
+  "mccabe",
 ]
+timm = ["timm"]
+torchvision = ["torchvision"]
 notebooks = ["jupyterlab", "ipywidgets", "ipykernel", "ipython-autotime"]
 docs = ["sphinx", "sphinx-rtd-theme", "numpydoc"]
 
@@ -79,11 +81,11 @@ testpaths = "tests"
 junit_family = "xunit2"
 junit_suite_name = "tests"
 markers = [
-    "integration: marks as integration test",
-    "notebooks: marks as notebook test",
-    "gpu: marks as gpu test",
-    "slow: marks tests as slow",
-    "unit: fast offline tests",
+  "integration: marks as integration test",
+  "notebooks: marks as notebook test",
+  "gpu: marks as gpu test",
+  "slow: marks tests as slow",
+  "unit: fast offline tests",
 ]
 
 [tool.coverage.run]
@@ -98,12 +100,12 @@ pythonVersion = "3.12"
 # typeCheckingMode = "strict"
 include = ["sources"]
 exclude = [
-    "datasets",
-    "dependencies",
-    "output",
-    "**/prototypes",
-    "**/tests",
-    "**/__pycache__",
+  "datasets",
+  "dependencies",
+  "output",
+  "**/prototypes",
+  "**/tests",
+  "**/__pycache__",
 ]
 executionEnvironments = [{ root = "sources" }]
 reportImplicitOverride = "warning"
@@ -125,27 +127,27 @@ fix = true
 
 [tool.ruff.lint]
 select = [
-    "F",    # PyFlakes
-    "E",    # Pycodestyle errors
-    "W",    # Pycodestyle warnings
-    "B",    # Bugbear
-    "C90",  # McCabe Complexity
-    "I",    # isort
-    "C4",   # Comprehensions
-    "EM",   # Error message 
-    "ICN",  # Import conventions
-    "G",    # Logging format
-    "PGH",  # Pygrep
-    "Q",    # Quotes
-    "PIE",  # PIE
-    "PL",   # Pylint
-    "PT",   # Pytest style
-    "PTH",  # Pathlib
-    "RET",  # Return
-    "SIM",  # Simplify
-    "UP",   # Pyupgrade
-    "FURB", # Refurb
-    "PYI",  # Pyi
+  "F",    # PyFlakes
+  "E",    # Pycodestyle errors
+  "W",    # Pycodestyle warnings
+  "B",    # Bugbear
+  "C90",  # McCabe Complexity
+  "I",    # isort
+  "C4",   # Comprehensions
+  "EM",   # Error message 
+  "ICN",  # Import conventions
+  "G",    # Logging format
+  "PGH",  # Pygrep
+  "Q",    # Quotes
+  "PIE",  # PIE
+  "PL",   # Pylint
+  "PT",   # Pytest style
+  "PTH",  # Pathlib
+  "RET",  # Return
+  "SIM",  # Simplify
+  "UP",   # Pyupgrade
+  "FURB", # Refurb
+  "PYI",  # Pyi
 ]
 
 [tool.ruff.lint.per-file-ignores]

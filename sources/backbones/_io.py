@@ -141,6 +141,7 @@ def load_model(
     path: PathLike, *, device: DeviceLike = DEFAULT_DEVICE, unsafe: bool = False
 ) -> torch.nn.Module:
     import importlib
+
     import laco
 
     path = _parse_path(path)
