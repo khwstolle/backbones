@@ -7,6 +7,7 @@ A command line interface for the backbones library.
 import argparse
 import inspect
 import json
+import logging
 import pathlib
 import sys
 import warnings
@@ -15,7 +16,7 @@ from functools import partial
 from pprint import pformat
 from typing import Any
 
-from unipercept.log import logger
+logger = logging.getLogger(__name__)
 
 
 class cli:
@@ -276,7 +277,6 @@ def export(
     r"""
     Export a pre-trained network using `torch.export`.
     """
-
 
     import torch.export
     import torch.nn

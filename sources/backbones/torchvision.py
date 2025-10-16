@@ -1,6 +1,7 @@
 """Wrapper for using models from the Torchvision registry."""
 
 import difflib
+import logging
 import typing as T
 import warnings
 from collections import OrderedDict
@@ -11,7 +12,8 @@ import regex as re
 import torch
 import torchvision.models
 import torchvision.models.feature_extraction
-from unipercept.log import logger
+
+logger = logging.getLogger(__name__)
 
 from ._wrapper import (
     ORDER_CHW,
@@ -170,7 +172,7 @@ class TorchvisionBackbone(WrapperBase):
             try:
                 extractor = torch.jit.script(extractor)  # type: ignore
             except Exception as e:
-                logger.warn(f"Failed to script the backbone: {e}")
+                logger.warning(f"Failed to script the backbone: {e}")
 
         self.ext = extractor
 

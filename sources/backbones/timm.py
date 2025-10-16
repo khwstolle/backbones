@@ -6,6 +6,7 @@ for more details.
 """
 
 import difflib
+import logging
 import operator
 import typing as T
 from collections import OrderedDict
@@ -20,7 +21,8 @@ from torchvision.models.feature_extraction import (
     create_feature_extractor,
     get_graph_node_names,
 )
-from unipercept.log import logger
+
+logger = logging.getLogger(__name__)
 
 from ._wrapper import (
     ORDER_CHW,
