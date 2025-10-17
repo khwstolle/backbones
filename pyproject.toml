@@ -1,7 +1,5 @@
-[build-system]
-requires = ["setuptools>=75", "setuptools-scm>=8", "wheel"]
-build-backend = "setuptools.build_meta"
-
+# Project metadata
+# ----------------
 [project]
 keywords = [
   "perception",
@@ -27,31 +25,14 @@ dependencies = [
   "torch >= 2.6.0",
   "torchvision",
   "safetensors",
-  "nvidia-ml-py",
   "regex",
   "laco",
   "expath",
 ]
 version = "0.0.2"
-#dynamic = ["version"]
-
-[tool.setuptools.dynamic]
-version = { attr = "backbones.__version__" }
 
 [project.entry-points.console_scripts]
 backbones = "backbones._cli:cli.main"
-
-[tool.setuptools]
-include-package-data = false
-
-[tool.setuptools.package-data]
-backbones = ["py.typed", "*.pyi", "*.pyc"]
-
-[tool.setuptools.packages.find]
-where = ["sources"]
-include = ["backbones*"]
-exclude = ["tests", "__pycache__"]
-namespaces = true
 
 [project.optional-dependencies]
 tests = [
@@ -74,6 +55,24 @@ torchvision = ["torchvision"]
 notebooks = ["jupyterlab", "ipywidgets", "ipykernel", "ipython-autotime"]
 docs = ["sphinx", "sphinx-rtd-theme", "numpydoc"]
 
+# Build system
+# ------------
+[build-system]
+requires = ["uv-build>=0.8.14"]
+build-backend = "uv_build"
+
+# UV
+# --
+[tool.uv]
+package = true
+
+[tool.uv.build-backend]
+module-root = "sources"
+module-name = ""
+namespace = true
+
+# Pytest
+# ------
 [tool.pytest.ini_options]
 addopts = "--doctest-modules -m 'not integration' -m 'not gpu' --benchmark-disable"
 pythonpath = ["sources"]
