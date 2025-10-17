@@ -58,7 +58,7 @@ docs = ["sphinx", "sphinx-rtd-theme", "numpydoc"]
 # Build system
 # ------------
 [build-system]
-requires = ["uv-build>=0.8.14<0.9"]
+requires = ["uv-build>=0.8.14,<0.9"]
 build-backend = "uv_build"
 
 # UV
